@@ -1,0 +1,176 @@
+---
+title: "TidyDFR intro"
+author: "Ben Schmidt"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+Data for research outputs some data files that you might work with.
+
+This library only exports a single function: read_DFR. Here's how you use it.
+
+## Reading this document.
+
+This document is mostly in text: snippets of code appear in the grey boxes. To run them, cut and paste into RStudio.
+
+```{r}
+paste("Just","my", 3-1 ,"cents!")
+```
+
+## Installing the DFR package
+
+To install this package, you need to type the following into RStudio.
+
+```{r}
+
+if (!require("devtools")) {install.packages("devtools")}
+if (!require(tidyDFR)) {devtools::install_github("bmschmidt/tidyDFR")}
+```
+
+First, you need to read in the data.
+
+The JStor file will probably be at a location something like the below. Just copy and paste
+the filename from inside the folder. The `~/` means inside your home directory.
+
+You may see some warnings in red. So long as there isn't an "error," things are OK.
+
+The bit at the end here -- `data %>% View()` lets you look at the data you've loaded in as if it were in a spreadsheet,
+and sort it or filter by any column.
+get
+```{r}
+library(tidyDFR)
+library(tidyverse)
+library(tidytext)
+
+jstor = read_DFR(
+  zipfile = "~/Downloads/2016.10.18.mTkyWfE7.zip"
+  ,
+  exdir = "~/Downloads/2016.10.18.mTkyWfE7"
+  ,
+  type="wordcounts"
+)
+
+jstor %>% View()
+
+```
+
+The rest of this vignette are chains: you can cut and paste the row. 
+
+Here's a little chain that counts the number of words by journal.
+
+```{r}
+
+jstor %>% 
+  group_by(journaltitle) %>%
+  summarize(count=sum(count)) %>% 
+  arrange(-count)
+
+```
+
+You can change just one line of that to make it count, instead, authors.
+
+```{r}
+
+jstor %>% 
+  group_by(author) %>%
+  summarize(count=sum(count)) %>% 
+  arrange(-count)
+
+```
+
+Finally--getting towards something interesting--you can sort by word counts.
+
+Here I use two more libraries: `tidytext` and `wordcloud`. If you don't have them, no problem--you just won't be able to make a wordcloud. That's no great loss. But you can install by typing `install.packages("tidytext")` and the equivalent for "wordcloud." The `anti_join` function here removes stopwords in English.
+
+```{r}
+
+library(tidytext)
+library(wordcloud)
+data("stop_words")
+
+jstor %>% 
+  anti_join(stop_words,by = c("wordcounts" = "word")) %>%
+  count(wordcounts) %>%
+  arrange(-n) %>%
+  with(wordcloud(wordcounts,n,max.words=150))
+
+```
+
+Much better than wordclouds are *comparisons*. For this we'll use the `ggplot` package.
+
+It's really hard, though, to make comparisons across multiple fields. So first I'll look at that list of journals again to find two that look interesting.
+
+And then I'll filter down to the things I'm interested in.
+
+This gives us two columns: one for each journal.
+
+```{r}
+
+
+jstor %>% 
+  filter(journaltitle %in% c("The Geographical Journal","Bulletin of the American Geographical Society")) %>%
+  group_by(journaltitle,wordcounts) %>% summarize(count = sum(count)) %>%
+  spread(journaltitle,count,fill=0)
+
+```
+
+Now we can just copy that item and feed it into a plot. Before plotting, I'm doing another filter to ensure
+that the word appears at least 20 times.
+
+```{r}
+jstor %>% 
+  filter(journaltitle %in% c("The Geographical Journal","Bulletin of the American Geographical Society")) %>%
+  group_by(journaltitle,wordcounts) %>% summarize(count = sum(count)) %>%
+  spread(journaltitle,count,fill=0) %>%
+  filter(`Bulletin of the American Geographical Society` + `The Geographical Journal` > 20) %>%
+  ggplot() + 
+  geom_text(aes(x=`The Geographical Journal`, y = `Bulletin of the American Geographical Society`,label = wordcounts))
+
+```
+
+You can see a little bit of difference there; but most of the words are grouped together down in lower left. 
+The snippet below does the same thing with a log scale:
+
+```{r}
+
+jstor %>% 
+  filter(journaltitle %in% c("The Geographical Journal","Bulletin of the American Geographical Society")) %>%
+  group_by(journaltitle,wordcounts) %>% summarize(count = sum(count)) %>%
+  spread(journaltitle,count,fill=0) %>%
+  filter(`Bulletin of the American Geographical Society` + `The Geographical Journal` > 20) %>%
+  ggplot() + 
+  geom_text(aes(x=`The Geographical Journal`, y = `Bulletin of the American Geographical Society`,label = wordcounts)) +
+  scale_x_log10() + scale_y_log10()
+
+```
+
+One last example. This requires a few more packages; if you get errors, you may need to type
+
+* `install.packages("humaniformat")`
+* `install.packages("devtools")`
+* `devtools::install_github("ropensci/gender",ref = "07d3e7b")`
+
+It makes the same kind of plot but instead with two journals, identifying 
+
+```{r}
+
+jstor %>% 
+  mutate(firstname = humaniformat::first_name(author)) %>% 
+  mutate(gender = gender::gender_vector(firstname)) %>%
+  group_by(gender,wordcounts) %>%
+  summarize(count=sum(count)) %>%
+  spread(gender,count) %>%
+  filter(male + female > 100) %>%
+  ggplot() + 
+  geom_text(aes(x=`male`, y = `female`,label = wordcounts)) +
+  scale_x_log10() + scale_y_log10()
+
+```
+
+What else could you do with this data?
+
+* Compare any two metadata facets you can think of.

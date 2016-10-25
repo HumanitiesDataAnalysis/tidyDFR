@@ -1,0 +1,13 @@
+Package: tidyDFR
+Type: Package
+Title: Reads DFR items
+Version: 1.0
+Authors@R: person("Benjamin", "Schmidt", email = "bmschmidt@gmail.com", role = c("aut", "cre"))
+Description: Read DFR files into a data frame for use in the tidyverse. See the vignettes for some basic examples
+License: MIT
+LazyData: TRUE
+Depends: tidyverse,
+  readr
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr
