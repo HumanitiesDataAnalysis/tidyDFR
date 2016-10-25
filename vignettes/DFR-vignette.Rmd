@@ -23,7 +23,7 @@ paste("Just","my", 3-1 ,"cents!")
 
 ## Installing the DFR package
 
-To install this package, you need to type the following into RStudio.
+To install this package, you need to paste the following into RStudio.
 
 ```{r}
 
